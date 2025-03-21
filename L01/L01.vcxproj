@@ -129,9 +129,11 @@
   <ItemGroup>
     <ClCompile Include="L01.cpp" />
     <ClCompile Include="SmirnovSession.cpp" />
+    <ClCompile Include="SmirnovThread.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SmirnovSession.h" />
+    <ClInclude Include="SmirnovThread.h" />
     <ClInclude Include="SysProg.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

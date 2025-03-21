@@ -1,17 +1,34 @@
 ﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace L01Sharp
 {
     public partial class Form1 : Form
     {
+        [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool InitSharedMemory();
+
+        [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool WriteData(string data, IntPtr size);
+
+        [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool ReadData(StringBuilder buffer, UIntPtr bufferSize);
+
+        [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void Cleanup();
+
+
         Process childProcess = null;
         System.Threading.EventWaitHandle stopEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "StopEvent");
         System.Threading.EventWaitHandle startEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "StartEvent");
+        System.Threading.EventWaitHandle sendEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "SendEvent");
         System.Threading.EventWaitHandle confirmEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ConfirmEvent");
         int ThreadCounter = 0;
 
         public Form1()
         {
+            InitSharedMemory();
             InitializeComponent();
             textBox1.Text = "1";
         }
@@ -90,6 +107,35 @@ namespace L01Sharp
 
         private void button3_Click(object sender, EventArgs e)
         {
+            if (!(childProcess == null || childProcess.HasExited))
+            {
+                string dir = listBox1.SelectedItem.ToString();
+                
+                string msg = textBox1.Text;
+                if (dir == "Все потоки")
+                {
+                    //send(-1, msg);
+                } else if (dir == "Главный поток")
+                {
+                    //send(0, msg);
+                } else
+                {
+                    try
+                    {
+                        int threadID = int.Parse(dir);
+                        WriteData(msg, (IntPtr)(msg.Length + 1));
+                        sendEvent.Set();
+                        if (confirmEvent.WaitOne())
+                        {
+
+                        }
+                    } catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.ToString());
+                    }
+
+                }
+            }
 
         }
     }

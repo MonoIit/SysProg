@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "L01Sharp": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

@@ -1,68 +1,63 @@
 #include <windows.h>
 #include <iostream>
 #include "SmirnovSession.h"
+#include "SmirnovThread.h"
 using namespace std;
 
-
-DWORD WINAPI MyThread(LPVOID lpParam)
-{
-	auto session = static_cast<SmirnovSession*>(lpParam);
-	SafeWrite("session", session->sessionID, "created");
-	while (true)
-	{
-		Message m;
-		if (session->getMessage(m))
-		{
-			switch (m.header.messageType)
-			{
-			case MT_CLOSE:
-			{
-				SafeWrite("session", session->sessionID, "closed");
-				delete session;
-				return 0;
-			}
-			case MT_DATA:
-			{
-				SafeWrite("session", session->sessionID, "data", m.data);
-				Sleep(500 * session->sessionID);
-				break;
-			}
-			}
-		}
-	}
-	return 0;
-}
+typedef bool (*ReadData_t)(char*, size_t);
 
 void start()
 {
+    HMODULE hDll = LoadLibraryA("MMF.dll");
+
+    ReadData_t ReadData = (ReadData_t)GetProcAddress(hDll, "ReadData");
 	
 	InitializeCriticalSection(&cs);
-	vector<SmirnovSession*> sessions;
-	int i = 1;
+
+	vector<SmirnovThread*> threads;
+    boolean flag = true;
 
     HANDLE hStartEvent = CreateEvent(NULL, FALSE, FALSE, L"StartEvent");
     HANDLE hStopEvent = CreateEvent(NULL, FALSE, FALSE, L"StopEvent");
+    HANDLE hSendEvent = CreateEvent(NULL, FALSE, FALSE, L"SendEvent");
     HANDLE hConfirmEvent = CreateEvent(NULL, FALSE, FALSE, L"ConfirmEvent");
-    HANDLE hControlEvents[2] = {hStartEvent, hStopEvent};
-    while (i)
+    HANDLE hControlEvents[3] = {hStartEvent, hStopEvent, hSendEvent};
+    while (flag)
     {
-        int n = WaitForMultipleObjects(2, hControlEvents, FALSE, INFINITE) - WAIT_OBJECT_0;
+        int n = WaitForMultipleObjects(3, hControlEvents, FALSE, INFINITE) - WAIT_OBJECT_0;
+        
         switch (n)
         {
-            case 0:
-				sessions.push_back(new SmirnovSession(i));
-                CreateThread(NULL, 0, MyThread, (LPVOID) sessions.back(), 0, NULL);
-                SetEvent(hConfirmEvent);
-                i++;
-                break;
-            case 1:
-				ResetEvent(hStopEvent);
-
-				sessions.back()->addMessage(MT_CLOSE);
-				sessions.pop_back();
-				i--;
-                SetEvent(hConfirmEvent);
-                break;
+        case 0: {
+            
+            auto thread = new SmirnovThread();
+            threads.push_back(thread);
+            SetEvent(hConfirmEvent);
+            break;
+        }
+        case 1: {
+            ResetEvent(hStopEvent);
+            if (!threads.empty()) {
+                threads.back()->addMessage(MT_CLOSE);
+                delete threads.back();
+                threads.pop_back();
+            }
+            else {
+                flag = false;
+            }
+            SetEvent(hConfirmEvent);
+            break;
+        }
+        case 2: {
+            ResetEvent(hSendEvent);
+            char buffer[4096];
+            ReadData(buffer, sizeof(buffer));
+            if (!threads.empty()) {
+                threads.back()->addMessage(MT_DATA, buffer);
+            }
+            SetEvent(hConfirmEvent);
+            break;
+        }
         }
     }
     SetEvent(hConfirmEvent);

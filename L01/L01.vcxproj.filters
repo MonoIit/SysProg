@@ -21,12 +21,18 @@
     <ClCompile Include="SmirnovSession.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SmirnovThread.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SmirnovSession.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SysProg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SmirnovThread.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
