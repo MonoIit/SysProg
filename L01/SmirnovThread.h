@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SmirnovSession.h"
+#include <fstream>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -22,17 +23,26 @@ public:
     }
 
     void run() {
-        cout << "Session " << session->sessionID << " created" << endl;
+        SafeWrite("Session", session->sessionID, "created");
         while (isRunning) {
             Message m;
             if (session->getMessage(m)) {
                 switch (m.header.messageType) {
                 case MT_CLOSE:
-                    SafeWrite("session", session->sessionID, "закрыта");
+                    SafeWrite("session", session->sessionID, "closed");
                     isRunning = false;
                     break;
                 case MT_DATA:
-                    SafeWrite("session", session->sessionID, "data", m.data);
+                    // SafeWrite("session", session->sessionID, "data", m.data);
+
+                    string filename = to_string(session->sessionID) + ".txt";
+                    ofstream outFile(filename, ios::app);
+
+                    if (outFile.is_open()) {
+                        outFile << m.data << " " << endl;
+                        outFile.close();
+                    }
+
                     this_thread::sleep_for(chrono::milliseconds(500 * session->sessionID));
                     break;
                 }

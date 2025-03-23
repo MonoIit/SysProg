@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
 namespace L01Sharp
 {
@@ -10,7 +11,7 @@ namespace L01Sharp
         public static extern bool InitSharedMemory();
 
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool WriteData(string data, IntPtr size);
+        public static extern bool WriteData(IntPtr threadID, string data, IntPtr size);
 
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern bool ReadData(StringBuilder buffer, UIntPtr bufferSize);
@@ -35,56 +36,65 @@ namespace L01Sharp
 
         private void button1_Click(object sender, EventArgs e)
         {
-            if (childProcess == null || childProcess.HasExited)
+            try
             {
-                listBox1.Items.Clear();
-                ThreadCounter = 0;
-                childProcess = new Process();
-                childProcess.StartInfo.FileName = "L01.exe";
-                childProcess.EnableRaisingEvents = true;
-                childProcess.Exited += ChildProcess_Exited;
-
-                childProcess.Start();
-
-                listBox1.Items.Add("Все потоки");
-                listBox1.Items.Add("Главный поток");
-            }
-
-            int N = int.Parse(textBox1.Text);
-            for (int i = 0; i < N; i++)
-            {
-                startEvent.Set();
-                if (confirmEvent.WaitOne())
+                int N = int.Parse(textBox1.Text);
+                if (childProcess == null || childProcess.HasExited)
                 {
-                    listBox1.Items.Add(++ThreadCounter);
+                    listBox1.Items.Clear();
+                    ThreadCounter = 0;
+                    childProcess = new Process();
+                    childProcess.StartInfo.FileName = "L01.exe";
+                    childProcess.EnableRaisingEvents = true;
+                    childProcess.Exited += ChildProcess_Exited;
+
+                    childProcess.Start();
+
+                    listBox1.Items.Add("Все потоки");
+                    listBox1.Items.Add("Главный поток");
+                }
+
+
+                for (int i = 0; i < N; i++)
+                {
+                    startEvent.Set();
+                    if (confirmEvent.WaitOne())
+                    {
+                        listBox1.Items.Add(++ThreadCounter);
+                    }
                 }
             }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            if (!(childProcess == null || childProcess.HasExited))
+            try
             {
-                if (ThreadCounter == 0)
+                if (!(childProcess == null || childProcess.HasExited))
                 {
-                    listBox1.Items.Clear();
-                    childProcess.Kill();
+                    if (ThreadCounter == 0)
+                    {
+                        listBox1.Items.Clear();
+                        childProcess.Kill();
+                    }
+                    else
+                    {
+                        stopEvent.Set();
+                        if (confirmEvent.WaitOne())
+                        {
+                            listBox1.Items.RemoveAt(listBox1.Items.Count - 1);
+                            ThreadCounter--;
+                        }
+                    }
                 }
                 else
                 {
-                    stopEvent.Set();
-                    if (confirmEvent.WaitOne())
-                    {
-                        listBox1.Items.RemoveAt(listBox1.Items.Count - 1);
-                        ThreadCounter--;
-                    }
+                    listBox1.Items.Clear();
+                    ThreadCounter = 0;
                 }
             }
-            else
-            {
-                listBox1.Items.Clear();
-                ThreadCounter = 0;
-            }
+            catch (Exception ex) { MessageBox.Show(ex.ToString()); }
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -109,31 +119,36 @@ namespace L01Sharp
         {
             if (!(childProcess == null || childProcess.HasExited))
             {
-                string dir = listBox1.SelectedItem.ToString();
-                
-                string msg = textBox1.Text;
-                if (dir == "Все потоки")
+                try
                 {
-                    //send(-1, msg);
-                } else if (dir == "Главный поток")
-                {
-                    //send(0, msg);
-                } else
-                {
-                    try
-                    {
-                        int threadID = int.Parse(dir);
-                        WriteData(msg, (IntPtr)(msg.Length + 1));
-                        sendEvent.Set();
-                        if (confirmEvent.WaitOne())
-                        {
+                    string dir = listBox1.SelectedItem.ToString();
 
-                        }
-                    } catch (Exception ex)
+                    string msg = textBox1.Text;
+                    byte[] bytes = Encoding.UTF8.GetBytes(msg);
+                    int threadId;
+
+                    if (dir == "Все потоки")
                     {
-                        MessageBox.Show(ex.ToString());
+                        threadId = -2;
                     }
+                    else if (dir == "Главный поток")
+                    {
+                        threadId = -1;
+                    }
+                    else
+                    {
+                        threadId = int.Parse(dir) - 1;
+                    }
+                    WriteData((IntPtr)threadId, msg, (IntPtr)(msg.Length + 1));
+                    sendEvent.Set();
+                    if (confirmEvent.WaitOne())
+                    {
 
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.ToString());
                 }
             }
 

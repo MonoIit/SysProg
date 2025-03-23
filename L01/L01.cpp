@@ -4,13 +4,11 @@
 #include "SmirnovThread.h"
 using namespace std;
 
-typedef bool (*ReadData_t)(char*, size_t);
+typedef bool (*ReadDataFunc)(int&, char*, size_t);
 
-void start()
+void start(HMODULE hDLL, ReadDataFunc ReadData)
 {
-    HMODULE hDll = LoadLibraryA("MMF.dll");
-
-    ReadData_t ReadData = (ReadData_t)GetProcAddress(hDll, "ReadData");
+    
 	
 	InitializeCriticalSection(&cs);
 
@@ -50,11 +48,23 @@ void start()
         }
         case 2: {
             ResetEvent(hSendEvent);
-            char buffer[4096];
-            ReadData(buffer, sizeof(buffer));
-            if (!threads.empty()) {
-                threads.back()->addMessage(MT_DATA, buffer);
+            char buffer[4096] = { 0 };
+            int threadId = -1;
+
+            ReadData(threadId, buffer, sizeof(buffer));
+
+            if (threadId == -1) {
+                SafeWrite("Главный поток:", buffer);
             }
+            else if (threadId == -2) {
+                for (auto thread : threads) {
+                    thread->addMessage(MT_DATA, buffer);
+                }
+            }
+            else if (!threads.empty()) {
+                threads[threadId]->addMessage(MT_DATA, buffer);
+            }
+
             SetEvent(hConfirmEvent);
             break;
         }
@@ -66,6 +76,10 @@ void start()
 
 int main()
 {
-	start();
+    HMODULE hDLL = LoadLibraryA("MMF.dll");
+
+    ReadDataFunc ReadData = (ReadDataFunc)GetProcAddress(hDLL, "ReadData");
+
+	start(hDLL, ReadData);
 	return 0;
 }
