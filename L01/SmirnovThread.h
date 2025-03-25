@@ -18,12 +18,12 @@ public:
         : session(new SmirnovSession(++threadCounter)), worker(&SmirnovThread::run, this) {
     }
 
-    void addMessage(MessageTypes messageType, const string& data = "") {
+    void addMessage(MessageTypes messageType, const wstring data = L" ") {
         session->addMessage(messageType, data);
     }
 
     void run() {
-        SafeWrite("Session", session->sessionID, "created");
+        SafeWrite(L"Session", session->sessionID, "created");
         while (isRunning) {
             Message m;
             if (session->getMessage(m)) {
@@ -35,11 +35,11 @@ public:
                 case MT_DATA:
                     // SafeWrite("session", session->sessionID, "data", m.data);
 
-                    string filename = to_string(session->sessionID) + ".txt";
-                    ofstream outFile(filename, ios::app);
+                    wstring filename = to_wstring(session->sessionID) + L".txt";
+                    wofstream outFile(filename, ios::binary);
 
                     if (outFile.is_open()) {
-                        outFile << m.data << " " << endl;
+                        outFile << m.data << " ";
                         outFile.close();
                     }
 

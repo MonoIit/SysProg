@@ -16,7 +16,7 @@ inline void DoWrite()
 
 template <class T, typename... Args> inline void DoWrite(T& value, Args... args)
 {
-	std::cout << value << " ";
+	std::wcout << value << L" ";
 	DoWrite(args...);
 }
 

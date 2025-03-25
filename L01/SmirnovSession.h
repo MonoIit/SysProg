@@ -16,9 +16,9 @@ struct MessageHeader
 struct Message
 {
 	MessageHeader header = { 0 };
-	string data;
+	wstring data;
 	Message() = default;
-	Message(MessageTypes messageType, const string& data = "")
+	Message(MessageTypes messageType, const wstring& data = L" ")
 		:data(data)
 	{
 		header = { messageType,  int(data.length()) };
@@ -73,7 +73,7 @@ public:
 		return res;
 	}
 
-	void addMessage(MessageTypes messageType, const string& data = "")
+	void addMessage(MessageTypes messageType, const wstring& data = L" ")
 	{
 		Message m(messageType, data);
 		addMessage(m);

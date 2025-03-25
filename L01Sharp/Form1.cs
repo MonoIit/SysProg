@@ -10,11 +10,8 @@ namespace L01Sharp
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern bool InitSharedMemory();
 
-        [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool WriteData(IntPtr threadID, string data, IntPtr size);
-
-        [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool ReadData(StringBuilder buffer, UIntPtr bufferSize);
+        [DllImport("MMF.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool WriteData(int threadID, string data);
 
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void Cleanup();
@@ -31,7 +28,7 @@ namespace L01Sharp
         {
             InitSharedMemory();
             InitializeComponent();
-            textBox1.Text = "1";
+            textBox1.Text = "5";
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -103,6 +100,7 @@ namespace L01Sharp
             {
                 button2_Click(sender, e);
             }
+            Cleanup();
         }
 
         private void ChildProcess_Exited(object sender, EventArgs e)
@@ -124,7 +122,6 @@ namespace L01Sharp
                     string dir = listBox1.SelectedItem.ToString();
 
                     string msg = textBox1.Text;
-                    byte[] bytes = Encoding.UTF8.GetBytes(msg);
                     int threadId;
 
                     if (dir == "Все потоки")
@@ -139,7 +136,7 @@ namespace L01Sharp
                     {
                         threadId = int.Parse(dir) - 1;
                     }
-                    WriteData((IntPtr)threadId, msg, (IntPtr)(msg.Length + 1));
+                    WriteData(threadId, msg);
                     sendEvent.Set();
                     if (confirmEvent.WaitOne())
                     {

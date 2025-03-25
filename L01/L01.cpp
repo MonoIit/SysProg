@@ -4,12 +4,15 @@
 #include "SmirnovThread.h"
 using namespace std;
 
-typedef bool (*ReadDataFunc)(int&, char*, size_t);
+struct header {
+    int addr;
+    int size;
+};
+
+typedef wstring (*ReadDataFunc)(header& h);
 
 void start(HMODULE hDLL, ReadDataFunc ReadData)
 {
-    
-	
 	InitializeCriticalSection(&cs);
 
 	vector<SmirnovThread*> threads;
@@ -48,21 +51,21 @@ void start(HMODULE hDLL, ReadDataFunc ReadData)
         }
         case 2: {
             ResetEvent(hSendEvent);
-            char buffer[4096] = { 0 };
-            int threadId = -1;
 
-            ReadData(threadId, buffer, sizeof(buffer));
+            header h;
+            wstring msg = ReadData(h);
 
-            if (threadId == -1) {
-                SafeWrite("Главный поток:", buffer);
+
+            if (h.addr == -1) {
+                SafeWrite(L"Главный поток:", msg);
             }
-            else if (threadId == -2) {
+            else if (h.addr == -2) {
                 for (auto thread : threads) {
-                    thread->addMessage(MT_DATA, buffer);
+                    thread->addMessage(MT_DATA, msg);
                 }
             }
             else if (!threads.empty()) {
-                threads[threadId]->addMessage(MT_DATA, buffer);
+                threads[h.addr]->addMessage(MT_DATA, msg);
             }
 
             SetEvent(hConfirmEvent);
@@ -76,6 +79,10 @@ void start(HMODULE hDLL, ReadDataFunc ReadData)
 
 int main()
 {
+    SetConsoleOutputCP(CP_UTF8);
+    std::locale::global(std::locale(""));
+    std::wcout.imbue(std::locale(""));
+
     HMODULE hDLL = LoadLibraryA("MMF.dll");
 
     ReadDataFunc ReadData = (ReadDataFunc)GetProcAddress(hDLL, "ReadData");
