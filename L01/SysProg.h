@@ -1,11 +1,6 @@
 #pragma once
 
-#include <windows.h>
-#include <conio.h>
-#include <iostream>
-#include <vector>
-#include <queue>
-#include <string>
+#include "pch.h"
 
 using namespace std;
 

@@ -1,10 +1,9 @@
 #pragma once
 
+#include "pch.h"
 #include "SmirnovSession.h"
-#include <fstream>
-#include <thread>
-#include <mutex>
-#include <atomic>
+#include "SysProg.h"
+
 
 class SmirnovThread {
 private:
@@ -12,10 +11,15 @@ private:
     SmirnovSession* session;
     thread worker;
     bool isRunning = true;
+    bool haveFile = false;
 
 public:
     explicit SmirnovThread()
         : session(new SmirnovSession(++threadCounter)), worker(&SmirnovThread::run, this) {
+    }
+
+    static int getThreadCounter() {
+        return threadCounter.load();
     }
 
     void addMessage(MessageTypes messageType, const wstring data = L" ") {
@@ -24,6 +28,8 @@ public:
 
     void run() {
         SafeWrite(L"Session", session->sessionID, "created");
+        
+    
         while (isRunning) {
             Message m;
             if (session->getMessage(m)) {
@@ -33,13 +39,21 @@ public:
                     isRunning = false;
                     break;
                 case MT_DATA:
-                    // SafeWrite("session", session->sessionID, "data", m.data);
-
-                    wstring filename = to_wstring(session->sessionID) + L".txt";
-                    wofstream outFile(filename, ios::binary);
-
+                    SafeWrite("session", session->sessionID, "data", m.data);
+                    
+                    wofstream outFile(to_wstring(session->sessionID) + L".txt", ios::binary | ios::app);
+                    
                     if (outFile.is_open()) {
-                        outFile << m.data << " ";
+                        outFile.imbue(locale(outFile.getloc(),
+                            new codecvt_utf16<wchar_t, 0x10ffff, little_endian>));
+
+                        if (!haveFile) {
+                            wchar_t bom = 0xFEFF;
+                            outFile.write(&bom, 1);
+                            haveFile = true;
+                        }
+
+                        outFile << m.data << L"\n";
                         outFile.close();
                     }
 

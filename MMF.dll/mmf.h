@@ -56,7 +56,7 @@ extern "C" {
 
     __declspec(dllexport) bool WriteData(int threadId, const wchar_t* data) {
 
-    WaitForSingleObject(hMutex, INFINITE);
+            WaitForSingleObject(hMutex, INFINITE);
 
             header h = { threadId, int(wcslen(data) * 2) };
             HANDLE hFile = CreateFile(L"filemap.dat", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, 0);
