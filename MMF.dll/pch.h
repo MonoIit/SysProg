@@ -1,13 +1,23 @@
-// pch.h: This is a precompiled header file.
-// Files listed below are compiled only once, improving build performance for future builds.
-// This also affects IntelliSense performance, including code completion and many code browsing features.
-// However, files listed here are ALL re-compiled if any one of them is updated between builds.
-// Do not add files here that you will be updating frequently as this negates the performance advantage.
+#pragma once
 
-#ifndef PCH_H
-#define PCH_H
+#include <winsock2.h>
+#include <windows.h>
+#include <conio.h>
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <locale>
+#include <codecvt>
 
-// add headers that you want to pre-compile here
-#include "framework.h"
+#include <boost/asio.hpp>
 
-#endif //PCH_H
+
+
+

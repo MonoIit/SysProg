@@ -35,10 +35,10 @@
     <ClInclude Include="SmirnovThread.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="asio.h">
+    <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pch.h">
+    <ClInclude Include="Message.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

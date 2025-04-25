@@ -16,6 +16,8 @@
 #include <locale>
 #include <codecvt>
 
-using namespace std;
-
 #include <boost/asio.hpp>
+
+using namespace std;
+using boost::asio::ip::tcp;
+

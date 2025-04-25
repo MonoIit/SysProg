@@ -1,29 +1,6 @@
 #pragma once
 #include "pch.h"
-
-enum MessageTypes
-{
-	MT_CLOSE,
-	MT_DATA,
-};
-
-struct MessageHeader
-{
-	int messageType;
-	int size;
-};
-
-struct Message
-{
-	MessageHeader header = { 0 };
-	wstring data;
-	Message() = default;
-	Message(MessageTypes messageType, const wstring& data = L" ")
-		:data(data)
-	{
-		header = { messageType,  int(data.length()) };
-	}
-};
+#include "Message.h"
 
 class SmirnovSession
 {
@@ -73,9 +50,9 @@ public:
 		return res;
 	}
 
-	void addMessage(MessageTypes messageType, const wstring& data = L" ")
+	void addMessage(const MessageTypes& messageType, int to = -1, const wstring& data = L"")
 	{
-		Message m(messageType, data);
+		Message m(messageType, to, data);
 		addMessage(m);
 	}
 };

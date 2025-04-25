@@ -22,8 +22,8 @@ public:
         return threadCounter.load();
     }
 
-    void addMessage(MessageTypes messageType, const wstring data = L" ") {
-        session->addMessage(messageType, data);
+    void addMessage(const MessageTypes& messageType, int to = -1, const wstring& data = L"") {
+        session->addMessage(messageType, to, data);
     }
 
     void run() {
@@ -33,7 +33,7 @@ public:
         while (isRunning) {
             Message m;
             if (session->getMessage(m)) {
-                switch (m.header.messageType) {
+                switch (m.header.type) {
                 case MT_CLOSE:
                     SafeWrite("session", session->sessionID, "closed");
                     isRunning = false;

@@ -1,137 +1,115 @@
+#pragma once
+
 #include "pch.h"
 #include "SmirnovSession.h"
 #include "SmirnovThread.h"
-#include "asio.h"
+#include "Message.h"
 
-using namespace std;
+using boost::asio::ip::tcp;
 
-//struct header {
-//    int addr;
-//    int size;
-//};
-//
-//typedef wstring (*ReadDataFunc)(header& h);
+typedef tcp::socket* (*create_socket_func)();
+typedef bool (*connect_socket_func)(tcp::socket*, const char*, unsigned short);
+typedef bool (*send_header_func)(tcp::socket*, const Header*);
+typedef bool (*send_data_func)(tcp::socket*, const wchar_t*, int);
+typedef bool (*read_header_func)(tcp::socket*, Header*);
+typedef bool (*read_data_func)(tcp::socket*, wchar_t*, int);
+typedef void (*close_socket_func)(tcp::socket*);
+typedef void (*destroy_socket_func)(tcp::socket*);
 
-//void start(HMODULE hDLL, ReadDataFunc ReadData)
-//{
-//	InitializeCriticalSection(&cs);
-//
-//	vector<SmirnovThread*> threads;
-//    boolean flag = true;
-//
-//    HANDLE hStartEvent = CreateEvent(NULL, FALSE, FALSE, L"StartEvent");
-//    HANDLE hStopEvent = CreateEvent(NULL, FALSE, FALSE, L"StopEvent");
-//    HANDLE hSendEvent = CreateEvent(NULL, FALSE, FALSE, L"SendEvent");
-//    HANDLE hConfirmEvent = CreateEvent(NULL, FALSE, FALSE, L"ConfirmEvent");
-//    HANDLE hControlEvents[3] = {hStartEvent, hStopEvent, hSendEvent};
-//    while (flag)
-//    {
-//        int n = WaitForMultipleObjects(3, hControlEvents, FALSE, INFINITE) - WAIT_OBJECT_0;
-//        
-//        switch (n)
-//        {
-//        case 0: {
-//            
-            /*auto thread = new SmirnovThread();
-            threads.push_back(thread);*/
-//            SetEvent(hConfirmEvent);
-//            break;
-//        }
-//        case 1: {
-//            ResetEvent(hStopEvent);
-//            if (!threads.empty()) {
-//                threads.back()->addMessage(MT_CLOSE);
-//                delete threads.back();
-//                threads.pop_back();
-//            }
-//            else {
-//                flag = false;
-//            }
-//            SetEvent(hConfirmEvent);
-//            break;
-//        }
-//        case 2: {
-//            ResetEvent(hSendEvent);
-//
-//            header h;
-//            wstring msg = ReadData(h);
-//
-//
-//            if (h.addr == -1) {
-//                SafeWrite(L"Главный поток:", msg);
-//            }
-//            else if (h.addr == -2) {
-//                for (auto thread : threads) {
-//                    thread->addMessage(MT_DATA, msg);
-//                }
-//            }
-//            else if (!threads.empty()) {
-//                threads[h.addr]->addMessage(MT_DATA, msg);
-//            }
-//
-//            SetEvent(hConfirmEvent);
-//            break;
-//        }
-//        }
-//    }
-//    SetEvent(hConfirmEvent);
-//	DeleteCriticalSection(&cs);
-//}
+
+HMODULE dll = LoadLibraryA("MMF.dll");
+
+auto create_socket = (create_socket_func)GetProcAddress(dll, "create_socket");
+auto connect_socket = (connect_socket_func)GetProcAddress(dll, "connect_socket");
+auto send_header = (send_header_func)GetProcAddress(dll, "send_header");
+auto send_data = (send_data_func)GetProcAddress(dll, "send_data");
+auto read_header = (read_header_func)GetProcAddress(dll, "read_header");
+auto read_data = (read_data_func)GetProcAddress(dll, "read_data");
+auto close_socket = (close_socket_func)GetProcAddress(dll, "close_socket");
+auto destroy_socket = (destroy_socket_func)GetProcAddress(dll, "destroy_socket");
+
+
+
+int receive(tcp::socket& s, Message& m) {
+    read_header(&s, &m.header);
+    if (m.header.size) {
+        m.data.resize(m.header.size / sizeof(wchar_t));
+        read_data(&s, const_cast<wchar_t*>(m.data.data()), m.header.size);
+    }
+    return m.header.type;
+}
+
+void send(tcp::socket& s, Message& m) {
+    send_header(&s, &m.header);
+    if (m.header.size)
+    {
+        send_data(&s, m.data.c_str(), m.header.size);
+    }
+}
+
 
 vector<SmirnovThread*> threads;
 
 void processClient(tcp::socket s) {
     try {
         while (true) {
-            wstring cmd = receiveString(s);
-            wistringstream wiss(cmd);
-            wstring action;
-            wiss >> action;
+            Message m(MT_DATA);
+            int code = receive(s, m);
+            switch (code) {
+            case (MT_INIT): {
 
-            if (action == L"CREATE") {
+                break;
+            }
+            case (MT_EXIT): {
+
+                break;
+            }
+            case (MT_CREATE): {
                 auto thread = new SmirnovThread();
                 threads.push_back(thread);
 
                 int count = SmirnovThread::getThreadCounter();
-                sendString(s, L"ok");
+                Message response(MT_CONFIRM, threads.size());
+                send(s, response);
+                break;
             }
-            else if (action == L"CLOSE") {
+            case (MT_CLOSE): {
                 if (!threads.empty()) {
                     threads.back()->addMessage(MT_CLOSE);
                     delete threads.back();
                     threads.pop_back();
 
                     int count = SmirnovThread::getThreadCounter();
-                    sendString(s, L"ok");
+                    Message response(MT_CONFIRM, threads.size());
+                    send(s, response);
                 }
                 else {
-                    sendString(s, L"error");
+                    Message response(MT_CONFIRM, threads.size());
+                    send(s, response);
                 }
+                break;
             }
-            else if (action == L"SEND") {
-                int id;
-                wiss >> id;
-                wstring msg;
-                getline(wiss, msg);
+            case (MT_DATA): {
+                wstring msg = m.data;
                 if (!msg.empty() && msg[0] == L' ') msg.erase(0, 1);
 
+                
+                int id = m.header.to;
                 if (id >= 0 && id < threads.size()) {
-                    threads[id]->addMessage(MT_DATA, msg);
-                    sendString(s, L"ok");
+                    threads[id]->addMessage(MT_DATA, id, msg);
                 }
                 else if (id == -1) {
                     SafeWrite(L"Главный поток:", msg);
-                    sendString(s, L"ok");
                 }
                 else if (id == -2) {
                     for (auto thread : threads) {
-                        thread->addMessage(MT_DATA, msg);
+                        thread->addMessage(MT_DATA, id, msg);
                     }
-                    sendString(s, L"ok");
                 }
-                else {
-                    sendString(s, L"error");
-                }
+                Message response(MT_CONFIRM, threads.size());
+                send(s, response);
+                break;
+            }
             }
         }
     }
@@ -162,9 +140,7 @@ int main()
     wcin.imbue(std::locale());
     wcout.imbue(std::locale());
 
-    //HMODULE hDLL = LoadLibraryA("MMF.dll");
-
-    //ReadDataFunc ReadData = (ReadDataFunc)GetProcAddress(hDLL, "ReadData");
+    
 
     startServer();
 	return 0;

@@ -6,26 +6,7 @@
 
 #include "pch.h"
 
-using boost::asio::ip::tcp;
-using namespace std;
 
-inline int receiveInt(tcp::socket& s)
-{
-	int n;
-	boost::system::error_code error;
-	boost::asio::read(s, boost::asio::buffer(&n, sizeof(n)), error);
-	if (error)
-		throw boost::system::system_error(error);
-	return n;
-}
-
-inline void sendInt(tcp::socket& s, int n)
-{
-	boost::system::error_code error;
-	boost::asio::write(s, boost::asio::buffer(&n, sizeof(n)), error);
-	if (error)
-		throw boost::system::system_error(error);
-}
 
 inline wstring receiveString(tcp::socket& s)
 {
