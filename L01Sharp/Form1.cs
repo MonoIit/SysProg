@@ -10,83 +10,70 @@ namespace L01Sharp
 {
     public partial class Form1 : Form
     {
-        IntPtr socket;
+     
         private static int ThreadCounter = 0;
-        
-        private static ushort PORT = 12345;
-        private static string IP = "127.0.0.1";
+        volatile bool _running = false;
+        private Thread t;
 
         public Form1()
-        {
-            socket = Native.create_socket();
-            Native.connect_socket(socket, IP, PORT);
-
+        {   
             InitializeComponent();
-            textBox1.Text = "5";    
+            textBox1.Text = "";
         }
 
-        private void send(MessageTypes type, int to = -1, string data = "")
+        void ProccesClient()
         {
-            int size = Encoding.Unicode.GetByteCount(data);
-            Message m = new Message(type, to, size, data);
-            Native.send_header(socket, ref m.header);
-            if (data.Length > 0)
+            while (_running)
             {
-                IntPtr p = Marshal.StringToHGlobalUni(m.data);
-                Native.send_data(socket, p, m.header.size);
-                Marshal.FreeHGlobal(p);
+                var m = Message.send(MessageRecipients.MR_BROKER, MessageTypes.MT_GETDATA);
+                switch ((MessageTypes)m.header.type)
+                {
+                    case MessageTypes.MT_DISCONNECT:
+                        Invoke((Action)(() => {
+                            textBox2.AppendText(m.data + " disconnected!" + Environment.NewLine);
+                            listBox1.Items.Remove(m.data);
+                        }));
+                        break;
+                    case MessageTypes.MT_CONNECT:
+                        Invoke((Action)(() => {
+                            textBox2.AppendText(m.data + " connected!" + Environment.NewLine);
+                            if (!listBox1.Items.Contains(m.data))
+                                listBox1.Items.Add(m.data);
+                        }));
+                        break;
+                    case MessageTypes.MT_DATA:
+                        Invoke((Action)(() => {
+                            textBox2.AppendText(m.header.from + ": " + m.data + Environment.NewLine);
+                        }));
+                        break;
+                    default:
+                        Thread.Sleep(500);
+                        break;
+                }
             }
-        }
-
-        private MessageTypes receive(Message m)
-        {
-            Native.read_header(socket, out m.header);
-            if (m.header.size > 0)
-            {
-                var buf = Marshal.AllocHGlobal(m.header.size);
-                Native.read_data(socket, buf, m.header.size);
-                m.data = Marshal.PtrToStringUni(buf, m.header.size / 2);
-                Marshal.FreeHGlobal(buf);
-            }
-            return (MessageTypes)m.header.type;
-        }
-
-        private void redrawListbox(int threadsLength)
-        {
-            listBox1.Items.Clear();
-            listBox1.Items.Add("Все потоки");
-            listBox1.Items.Add("Главный поток");
-
-            for (int i = 0; i < threadsLength; ++i)
-            {
-                listBox1.Items.Add(i + 1);
-            }
-            ThreadCounter = threadsLength;
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             try
             {
-                int N = int.Parse(textBox1.Text);
-                if (ThreadCounter == 0)
-                {
-                    listBox1.Items.Clear();
-                    listBox1.Items.Add("Все потоки");
-                    listBox1.Items.Add("Главный поток");
-                }
+                if (_running) return;
 
+                var m = Message.send(MessageRecipients.MR_BROKER, MessageTypes.MT_INIT);
+                listBox1.Items.Add("Все потоки");
 
-                for (int i = 0; i < N; i++)
-                {
-                    send(MessageTypes.MT_CREATE);
-                    Message response = new Message();
-                    if (receive(response) == MessageTypes.MT_CONFIRM)
-                    {
-                        if (response.header.to != ThreadCounter + 1) { redrawListbox(response.header.to); }
-                        else { listBox1.Items.Add(++ThreadCounter); }
-                    }
-                }
+                var users = m.data.Split(';');
+                Invoke((Action)(() => {
+                    foreach (var u in users)
+                        if (!listBox1.Items.Contains(u))
+                            listBox1.Items.Add(u);
+                }));
+                
+
+                t = new Thread(ProccesClient);
+                _running = true;
+                t.Start();
+
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
@@ -95,25 +82,16 @@ namespace L01Sharp
         {
             try
             {
-                    if (ThreadCounter == 0)
-                    {
-                        listBox1.Items.Clear();
-                        Native.close_socket(socket);
-                    }
-                    else
-                    {
-                        send(MessageTypes.MT_CLOSE);
-                        Message response = new Message();
-                        if (receive(response) == MessageTypes.MT_CONFIRM) {
-                            if (response.header.to != ThreadCounter + 1) { redrawListbox(response.header.to); }
-                            else
-                            {
-                                listBox1.Items.RemoveAt(listBox1.Items.Count - 1);
-                                ThreadCounter--;
-                            }
+                if (!_running) return;
 
-                        }
-                    }
+                _running = false;
+                t.Join();
+                //var m = Message.send(MessageRecipients.MR_BROKER, MessageTypes.MT_EXIT);
+                Native.close_socket();
+
+                textBox1.Clear();
+                textBox2.Clear();
+                listBox1.Items.Clear();
             }
             catch (Exception ex)
             {
@@ -123,7 +101,7 @@ namespace L01Sharp
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            Native.destroy_socket(socket);
+            button2_Click(sender, e);
         }
 
         private void ChildProcess_Exited(object sender, EventArgs e)
@@ -132,7 +110,6 @@ namespace L01Sharp
             {
                 listBox1.Items.Clear();
                 ThreadCounter = 0;
-                Native.close_socket(socket);
             }));
         }
 
@@ -140,28 +117,35 @@ namespace L01Sharp
         {
             try
             {
-                    string dir = listBox1.SelectedItem.ToString();
-                    string msg = textBox1.Text;
-                    int threadId;
+                string dir = listBox1.SelectedItem.ToString();
+                string msg = textBox1.Text;
+                MessageRecipients threadId;
 
-                    if (dir == "Все потоки")
-                    {
-                        threadId = -2;
-                    }
-                    else if (dir == "Главный поток")
-                    {
-                        threadId = -1;
-                    }
-                    else
-                    {
-                        threadId = int.Parse(dir) - 1;
-                    }
-                send(MessageTypes.MT_DATA, threadId, msg);
+                if (dir == "Все потоки")
+                {
+                    threadId = MessageRecipients.MR_ALL;
+                }
+                else
+                {
+                    threadId = (MessageRecipients) int.Parse(dir);
+                }
+                Message.send(threadId, MessageTypes.MT_DATA, msg);
+                //textBox2.AppendText(Message.clientID + ": " + msg + '\n');
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Ошибка: " + ex.ToString());
             }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -12,28 +12,33 @@ private:
     thread worker;
     bool isRunning = true;
     bool haveFile = false;
+    int id;
 
 public:
-    explicit SmirnovThread()
-        : session(new SmirnovSession(++threadCounter)), worker(&SmirnovThread::run, this) {
+    explicit SmirnovThread(int id)
+        : session(new SmirnovSession(id)), worker(&SmirnovThread::run, this), id(id) {
     }
 
-    static int getThreadCounter() {
-        return threadCounter.load();
+    int getThreadId() {
+        return id;
     }
 
-    void addMessage(const MessageTypes& messageType, int to = -1, const wstring& data = L"") {
-        session->addMessage(messageType, to, data);
+    SmirnovSession* getSession() {
+        return session;
+    }
+
+    void addMessage(Message& m) {
+        session->addMessage(m);
     }
 
     void run() {
         SafeWrite(L"Session", session->sessionID, "created");
-        
-    
+
         while (isRunning) {
-            Message m;
+            /*Message m;
             if (session->getMessage(m)) {
                 switch (m.header.type) {
+
                 case MT_CLOSE:
                     SafeWrite("session", session->sessionID, "closed");
                     isRunning = false;
@@ -60,7 +65,7 @@ public:
                     this_thread::sleep_for(chrono::milliseconds(500 * session->sessionID));
                     break;
                 }
-            }
+            }*/
         }
     }
 
@@ -68,7 +73,6 @@ public:
         isRunning = false;
         if (worker.joinable()) {
             worker.join();
-            threadCounter--;
         }
         delete session;
     }

@@ -133,11 +133,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="L01.cpp" />
+    <ClCompile Include="Message.cpp" />
     <ClCompile Include="SmirnovSession.cpp" />
     <ClCompile Include="SmirnovThread.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Message.h" />
+    <ClInclude Include="mmf.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="SmirnovSession.h" />
     <ClInclude Include="SmirnovThread.h" />

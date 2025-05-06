@@ -9,11 +9,8 @@ namespace L01Sharp
 {
     static class Native
     {
-        [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr create_socket();
-
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-        public static extern bool connect_socket(IntPtr sock, string host, ushort port);
+        public static extern IntPtr connect_socket(string host, ushort port);
 
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern bool send_header(IntPtr sock, ref Header h);
@@ -28,7 +25,7 @@ namespace L01Sharp
         public static extern bool read_data(IntPtr sock, IntPtr buf, int bytes);
 
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void close_socket(IntPtr sock);
+        public static extern void close_socket();
 
         [DllImport("MMF.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void destroy_socket(IntPtr sock);

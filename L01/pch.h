@@ -15,6 +15,9 @@
 #include <atomic>
 #include <locale>
 #include <codecvt>
+#include <map>
+#include <unordered_map>
+#include <chrono>
 
 #include <boost/asio.hpp>
 

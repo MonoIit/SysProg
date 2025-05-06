@@ -13,11 +13,12 @@ struct Header {
 
 
 extern "C" {
-    __declspec(dllexport) tcp::socket* connect_socket(const char* host, unsigned short port);
+    __declspec(dllexport) tcp::socket* create_socket();
+    __declspec(dllexport) bool          connect_socket(tcp::socket* s, const char* host, unsigned short port);
     __declspec(dllexport) bool          send_header(tcp::socket* s, const Header* h);
     __declspec(dllexport) bool          send_data(tcp::socket* s, const wchar_t* buf, int bytes);
     __declspec(dllexport) bool          read_header(tcp::socket* s, Header* h);
     __declspec(dllexport) bool          read_data(tcp::socket* s, wchar_t* buf, int bytes);
-    __declspec(dllexport) void          close_socket();
+    __declspec(dllexport) void          close_socket(tcp::socket* s);
     __declspec(dllexport) void          destroy_socket(tcp::socket* s);
 }

@@ -4,16 +4,22 @@
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
 
-tcp::socket* create_socket() {
-    static boost::asio::io_context ios;
-    return new tcp::socket(ios);
-}
+boost::asio::io_context global_io;
+tcp::socket global_socket(global_io);
 
-bool connect_socket(tcp::socket* s, const char* host, unsigned short port) {
-    boost::asio::ip::tcp::resolver resolver{s->get_executor()};
-    auto endpoints = resolver.resolve(host, std::to_string(port));
-    boost::asio::connect(*s, endpoints);
-    return true;
+tcp::socket* connect_socket(const char* host, unsigned short port) {
+    try {
+        if (!global_socket.is_open()) {
+            tcp::resolver resolver(global_io);
+            auto endpoints = resolver.resolve(host, std::to_string(port));
+            boost::asio::connect(global_socket, endpoints);
+        }
+        return &global_socket;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Connection failed: " << e.what() << std::endl;
+        return nullptr;
+    }
 }
 
 bool send_header(tcp::socket* s, const Header* h) {
@@ -44,9 +50,9 @@ bool read_data(tcp::socket* s, wchar_t* buf, int bytes) {
     return true;
 }
 
-void close_socket(tcp::socket* s) {
+void close_socket() {
     boost::system::error_code ec;
-    s->close(ec);
+    global_socket.close(ec);
 }
 
 void destroy_socket(tcp::socket* s) {
