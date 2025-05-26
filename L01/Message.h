@@ -2,7 +2,7 @@
 #pragma comment(lib, "MMF.lib")
 
 #include "pch.h"
-#include "mmf.h"
+#include "asio.h"
 
 using boost::asio::ip::tcp;
 
@@ -28,6 +28,13 @@ enum MessageRecipients
 	MR_USER = 100
 };
 
+struct Header {
+	int type;
+	int to;
+	int from;
+	int size;
+};
+
 
 
 class Message {
@@ -41,23 +48,23 @@ public:
 	Message(int type, int to = -1, int from = -1, const wstring& data = L"")
 	{
 		this->data = data;
-		header = { type, to, from, (int) data.length() * 2 };
+		header = { type, to, from, int(data.length() * sizeof(wchar_t)) };
 	}
 
 	int receive(tcp::socket& s) {
-		read_header(&s, &header);
+		receiveData(s, &header);
 		if (header.size) {
 			data.resize(header.size / sizeof(wchar_t));
-			read_data(&s, const_cast<wchar_t*>(data.data()), header.size);
+			receiveData(s, data.data(), header.size);
 		}
 		return header.type;
 	}
 
 	void send(tcp::socket& s) {
-		send_header(&s, &header);
+		sendData(s, &header);
 		if (header.size)
 		{
-			send_data(&s, data.c_str(), header.size);
+			sendData(s, data.c_str(), header.size);
 		}
 	}
 

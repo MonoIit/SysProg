@@ -44,7 +44,7 @@
     <ClInclude Include="Message.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="mmf.h">
+    <ClInclude Include="asio.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

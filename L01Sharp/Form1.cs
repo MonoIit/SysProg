@@ -63,11 +63,10 @@ namespace L01Sharp
                 listBox1.Items.Add("Все потоки");
 
                 var users = m.data.Split(';');
-                Invoke((Action)(() => {
-                    foreach (var u in users)
-                        if (!listBox1.Items.Contains(u))
-                            listBox1.Items.Add(u);
-                }));
+                foreach (var u in users)
+                    if (!listBox1.Items.Contains(u))
+                        listBox1.Items.Add(u);
+                
                 
 
                 t = new Thread(ProccesClient);
@@ -87,7 +86,6 @@ namespace L01Sharp
                 _running = false;
                 t.Join();
                 //var m = Message.send(MessageRecipients.MR_BROKER, MessageTypes.MT_EXIT);
-                Native.close_socket();
 
                 textBox1.Clear();
                 textBox2.Clear();

@@ -19,11 +19,11 @@ void processClient(tcp::socket s) {
         while (true) {
             Message m;
             int code = m.receive(s);
-            
+            SafeWrite(m.header.to, L":", m.header.from, L":", m.header.type, L":", m.header.size);
             if (m.header.from != 0) {
                 lock_guard<std::mutex> lock(timeMutex);
                 lastSeen[m.header.from] = chrono::steady_clock::now();
-                //cout << m.header.to << ": " << m.header.from << ": " << m.header.type << ": " << code << endl;
+                
             }
 
             switch (code) {

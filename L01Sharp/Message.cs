@@ -59,39 +59,74 @@ namespace L01Sharp
             this.data = data;
         }
 
-        void send(IntPtr socket)
+        static byte[] toBytes(object obj)
         {
-            Native.send_header(socket, ref header);
-            if (data.Length > 0)
+            int size = Marshal.SizeOf(obj);
+            byte[] buff = new byte[size];
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            Marshal.StructureToPtr(obj, ptr, true);
+            Marshal.Copy(ptr, buff, 0, size);
+            Marshal.FreeHGlobal(ptr);
+            return buff;
+        }
+
+        static T fromBytes<T>(byte[] buff) where T : struct
+        {
+            T data = default(T);
+            int size = Marshal.SizeOf(data);
+            IntPtr i = Marshal.AllocHGlobal(size);
+            Marshal.Copy(buff, 0, i, size);
+            var d = Marshal.PtrToStructure(i, data.GetType());
+            if (d is not null)
             {
-                IntPtr p = Marshal.StringToHGlobalUni(data);
-                Native.send_data(socket, p, header.size);
-                Marshal.FreeHGlobal(p);
+                data = (T)d;
+            }
+            Marshal.FreeHGlobal(i);
+            return data;
+        }
+
+        void send(Socket s)
+        {
+            s.Send(toBytes(header), Marshal.SizeOf(header), SocketFlags.None);
+            if (header.size != 0)
+            {
+                s.Send(Encoding.Unicode.GetBytes(data), header.size, SocketFlags.None);
             }
         }
 
-        MessageTypes receive(IntPtr socket)
+        MessageTypes receive(Socket socket)
         {
-            Native.read_header(socket, out header);
+            byte[] buff = new byte[Marshal.SizeOf(header)];
+            if (socket.Receive(buff, Marshal.SizeOf(header), SocketFlags.None) == 0)
+            {
+                return MessageTypes.MT_NODATA;
+            }
+            header = fromBytes<Header>(buff);
             if (header.size > 0)
             {
-                var buf = Marshal.AllocHGlobal(header.size);
-                Native.read_data(socket, buf, header.size);
-                data = Marshal.PtrToStringUni(buf, header.size / 2);
-                Marshal.FreeHGlobal(buf);
+                byte[] b = new byte[header.size];
+                socket.Receive(b, header.size, SocketFlags.None);
+                data = Encoding.Unicode.GetString(b, 0, header.size);
+
             }
-            return (MessageTypes)header.type;
+            return (MessageTypes) header.type;
         }
 
-        static public void send(IntPtr socket, MessageRecipients to, MessageRecipients from, MessageTypes type = MessageTypes.MT_DATA, string data = "")
+        static public void send(Socket socket, MessageRecipients to, MessageRecipients from, MessageTypes type = MessageTypes.MT_DATA, string data = "")
         {
             new Message(to, from, type, data).send(socket);
         }
 
         static public Message send(MessageRecipients to, MessageTypes type = MessageTypes.MT_DATA, string data = "")
         {
-            IntPtr s = Native.connect_socket(IP, PORT);
-            
+            int nPort = 12345;
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), nPort);
+            Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            s.Connect(endPoint);
+            if (!s.Connected)
+            {
+                throw new Exception("Connection error");
+            }
             var m = new Message(to, clientID, type, data);
             m.send(s);
             if (m.receive(s) == MessageTypes.MT_INIT)

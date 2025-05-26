@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "asio.h"
 #include "Message.h"
 
 int Message::clientID = 0;
